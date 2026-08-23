@@ -58,7 +58,10 @@ button { color: inherit; }
 .escape-arrow { position: absolute; z-index: 5; left: 67%; top: 69%; color: #a83c2e; font-size: 25px; font-weight: 900; }
 .board-caption { margin: 12px 0 0; color: var(--muted); font-size: 11px; letter-spacing: .04em; }
 .board-caption span { color: var(--ink); }
+.board-caption .turn-stone { display: inline-block; width: 10px; height: 10px; margin-right: 7px; border-radius: 50%; background: var(--ink); vertical-align: -1px; }
 .question-card { min-height: 510px; display: flex; flex-direction: column; justify-content: center; }
+.perspective-label { display: flex; align-items: center; gap: 7px; width: max-content; margin: 0 0 11px; padding: 5px 8px; border: 1px solid rgba(23,32,24,.25); color: var(--ink); font-size: 9px; font-weight: 800; letter-spacing: .14em; }
+.perspective-label i { display: block; width: 9px; height: 9px; border-radius: 50%; background: var(--ink); }
 .question-number, .result-label { margin: 0 0 13px; color: var(--moss); font-size: 10px; font-weight: 800; letter-spacing: .2em; }
 .result-label { width: max-content; padding: 6px 9px; color: var(--moss-dark); background: rgba(203,227,106,.52); letter-spacing: .08em; }
 .question-card h1 { margin: 0; font-family: Georgia, "Yu Mincho", serif; font-size: clamp(28px, 3.1vw, 43px); line-height: 1.42; letter-spacing: .025em; }
