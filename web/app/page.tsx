@@ -38,8 +38,9 @@ const exercises: Exercise[] = [
       { x: 12, y: 9, color: 'white', group: 'b' }, { x: 13, y: 9, color: 'white', group: 'b' }, { x: 13, y: 10, color: 'white', group: 'b' }, { x: 14, y: 10, color: 'white', group: 'b' },
       { x: 12, y: 8, color: 'black' }, { x: 13, y: 7, color: 'black' }, { x: 15, y: 9, color: 'black' }, { x: 15, y: 11, color: 'black' }, { x: 13, y: 12, color: 'black' }, { x: 11, y: 11, color: 'black' },
       { x: 6, y: 12, color: 'black' }, { x: 7, y: 13, color: 'black' },
+      { x: 5, y: 14, color: 'white' }, { x: 6, y: 15, color: 'white' },
     ],
-    groupLabels: { a: '中央の黒3子', b: '右辺の白4子' }, targets: { a: { left: 41, top: 35 }, b: { left: 71, top: 51 } },
+    groupLabels: { a: '中央の黒3子', b: '右辺の白4子' }, targets: { a: { left: 39, top: 37 }, b: { left: 82, top: 48 } },
     correctGroup: 'b', correctReasons: ['eye', 'escape'], conclusion: 'Bの白石のほうが弱い一団です。',
     principle: '石の数ではなく、生きる手段の数を比べます。',
     explanations: [
@@ -57,10 +58,12 @@ const exercises: Exercise[] = [
       { x: 4, y: 8, color: 'white', group: 'a' }, { x: 4, y: 9, color: 'white', group: 'a' }, { x: 5, y: 9, color: 'white', group: 'a' },
       { x: 3, y: 7, color: 'white' }, { x: 2, y: 8, color: 'white' }, { x: 3, y: 11, color: 'white' },
       { x: 10, y: 9, color: 'black', group: 'b' }, { x: 11, y: 9, color: 'black', group: 'b' }, { x: 11, y: 10, color: 'black', group: 'b' }, { x: 12, y: 10, color: 'black', group: 'b' },
-      { x: 9, y: 8, color: 'white' }, { x: 10, y: 7, color: 'white' }, { x: 12, y: 8, color: 'white' }, { x: 13, y: 9, color: 'white' }, { x: 13, y: 11, color: 'white' }, { x: 11, y: 12, color: 'white' }, { x: 9, y: 11, color: 'white' },
+      { x: 9, y: 8, color: 'white' }, { x: 10, y: 7, color: 'white' }, { x: 12, y: 8, color: 'white' }, { x: 13, y: 9, color: 'white' }, { x: 11, y: 12, color: 'white' },
       { x: 6, y: 8, color: 'black' }, { x: 5, y: 11, color: 'black' },
+      { x: 6, y: 6, color: 'black' }, { x: 7, y: 6, color: 'black' }, { x: 7, y: 5, color: 'black' },
+      { x: 6, y: 13, color: 'black' }, { x: 7, y: 14, color: 'black' },
     ],
-    groupLabels: { a: '左辺の白3子', b: '中央の黒4子' }, targets: { a: { left: 22, top: 48 }, b: { left: 60, top: 52 } },
+    groupLabels: { a: '左辺の白3子', b: '中央の黒4子' }, targets: { a: { left: 17, top: 50 }, b: { left: 61, top: 44 } },
     correctGroup: 'b', correctReasons: ['eye', 'context'], conclusion: 'Bの黒石は、連結していても弱い状態です。',
     principle: 'つながった石は、一団全体で生きる場所を必要とします。',
     explanations: [
@@ -80,8 +83,10 @@ const exercises: Exercise[] = [
       { x: 6, y: 12, color: 'white', group: 'b' }, { x: 7, y: 12, color: 'white', group: 'b' }, { x: 7, y: 13, color: 'white', group: 'b' },
       { x: 5, y: 11, color: 'black' }, { x: 6, y: 10, color: 'black' }, { x: 8, y: 11, color: 'black' }, { x: 9, y: 12, color: 'black' }, { x: 9, y: 14, color: 'black' }, { x: 7, y: 15, color: 'black' }, { x: 5, y: 14, color: 'black' },
       { x: 11, y: 6, color: 'white' }, { x: 12, y: 7, color: 'white' },
+      { x: 4, y: 5, color: 'white' }, { x: 5, y: 5, color: 'white' }, { x: 5, y: 6, color: 'white' }, { x: 6, y: 6, color: 'white' },
+      { x: 11, y: 14, color: 'white' }, { x: 12, y: 14, color: 'white' }, { x: 13, y: 14, color: 'white' }, { x: 13, y: 13, color: 'white' },
     ],
-    groupLabels: { a: '右上の黒3子', b: '左下の白3子' }, targets: { a: { left: 77, top: 25 }, b: { left: 37, top: 67 } },
+    groupLabels: { a: '右上の黒3子', b: '左下の白3子' }, targets: { a: { left: 72, top: 22 }, b: { left: 31, top: 67 } },
     correctGroup: 'b', correctReasons: ['escape', 'context'], conclusion: 'Bの白石は、相手の厚みの中で孤立しています。',
     principle: '石の強さは形だけでなく、周囲との関係で決まります。',
     explanations: [
@@ -92,6 +97,16 @@ const exercises: Exercise[] = [
     boardNotes: [{ label: '黒の勢力圏', left: 23, top: 58 }, { label: '孤立', left: 42, top: 76 }], errorTag: '局所の形だけで判断',
   },
 ];
+
+for (const exercise of exercises) {
+  const blackCount = exercise.stones.filter((stone) => stone.color === 'black').length;
+  const whiteCount = exercise.stones.filter((stone) => stone.color === 'white').length;
+  const occupied = new Set(exercise.stones.map((stone) => `${stone.x},${stone.y}`));
+
+  if (blackCount !== whiteCount || occupied.size !== exercise.stones.length) {
+    throw new Error(`Invalid exercise position: ${exercise.id}`);
+  }
+}
 
 const reasons = [
   { id: 'eye', label: '眼を作る場所が少ない' },
@@ -116,7 +131,7 @@ function GoBoard({ exercise, selectedGroup, step, onSelect }: { exercise: Exerci
           const correct = step === 'feedback' && stone.group === exercise.correctGroup;
           return <button key={`${stone.x}-${stone.y}-${i}`} type="button" aria-label={`${stone.color === 'black' ? '黒' : '白'}石 ${stone.group ? `選択肢${stone.group.toUpperCase()}` : ''}`} className={`stone ${stone.color} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''} ${correct ? 'correct' : ''}`} style={{ left: `${(stone.x / 18) * 100}%`, top: `${(stone.y / 18) * 100}%` }} onClick={() => stone.group && selectable && onSelect(stone.group)} disabled={!selectable} />;
         })}
-        {step === 'group' && (['a', 'b'] as GroupId[]).map((group) => <button key={group} className="group-target" type="button" style={exercise.targets[group]} onClick={() => onSelect(group)} aria-label={`${group.toUpperCase()} ${exercise.groupLabels[group]}`}><span>{group.toUpperCase()}</span></button>)}
+        {step === 'group' && (['a', 'b'] as GroupId[]).map((group) => <button key={group} className="group-target" type="button" style={{ left: `${exercise.targets[group].left}%`, top: `${exercise.targets[group].top}%` }} onClick={() => onSelect(group)} aria-label={`${group.toUpperCase()} ${exercise.groupLabels[group]}`}><span>{group.toUpperCase()}</span></button>)}
         {step === 'feedback' && exercise.boardNotes.map((note, i) => <span key={i} className="annotation" style={{ left: `${note.left}%`, top: `${note.top}%` }}>{note.label}</span>)}
       </div>
     </div>
