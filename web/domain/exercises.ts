@@ -112,7 +112,7 @@ function stagesFor(seed: LegacySeed, index: number): ExerciseStage[] {
       id: 'priority', type: 'urgent_or_large', prompt: '黒番はいま、急場と大場のどちらを優先すべきですか？',
       lead: '弱い石を放置した結果まで想像してください。',
       options: [
-        { id: 'urgent', label: '急場：左下の黒Bの処置', detail: '弱い一団への対応を先に考える' },
+        { id: 'urgent', label: '急場：左下の黒3子の処置', detail: '弱い一団への対応を先に考える' },
         { id: 'large', label: '大場：空いている右辺へ先行', detail: '地になりそうな広い場所を取る' },
       ],
       correctAnswer: 'urgent',
@@ -122,15 +122,18 @@ function stagesFor(seed: LegacySeed, index: number): ExerciseStage[] {
 
 export const EXERCISE_CATALOG: ExerciseDefinition[] = legacySeeds.map((seed, index) => ({
   id: seed.id,
-  version: 2,
+  version: 3,
   topic: seed.topic,
   position: { size: 19, toPlay: seed.player, stones: seed.stones, source: { kind: 'authored' } },
   stages: stagesFor(seed, index),
   diagnosticTags: [seed.errorTag],
   feedback: {
-    conclusion: seed.conclusion,
+    conclusion: index === 0 ? seed.conclusion : seed.conclusion.replaceAll('黒B', seed.groupLabels.b).replace(/^Bの黒石/, seed.groupLabels.b),
     principle: seed.principle,
-    explanations: seed.explanations,
+    explanations: seed.explanations.map((item) => index === 0 ? item : ({
+      title: item.title === 'Aと比較する' ? 'もう一方と比較する' : item.title,
+      body: item.body.replaceAll('黒B', seed.groupLabels.b).replaceAll('黒A', seed.groupLabels.a),
+    })),
     boardNotes: seed.boardNotes,
   },
 }));

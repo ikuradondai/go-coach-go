@@ -36,9 +36,14 @@ function GoBoard({ exercise, stage, answer, feedback, phase, onAnswer }: {
     </div>
     {position.stones.filter((stone) => visible(stone.x, stone.y)).map((stone, i) => {
       const selectable = phase === 'answering' && Boolean(groupStage?.candidates.some((item) => item.id === stone.group));
-      return <button key={`${stone.x}-${stone.y}-${i}`} type="button" aria-label={`${stone.color === 'black' ? '黒' : '白'}石${stone.group ? ` グループ${stone.group}` : ''}`} className={`stone ${stone.color} ${selectable ? 'selectable' : ''} ${answer === stone.group ? 'selected' : ''} ${correctGroup === stone.group ? 'correct' : ''}`} style={{ left: left(stone.x), top: top(stone.y), width: `${92 / Math.max(crop.width, crop.height)}%` }} onClick={() => selectable && stone.group && onAnswer(stone.group)} disabled={!selectable} />;
+      return <button key={`${stone.x}-${stone.y}-${i}`} type="button" aria-label={`${stone.color === 'black' ? '黒' : '白'}石${stone.group ? ` グループ${stone.group}` : ''}`} className={`stone ${stone.color} ${selectable ? 'selectable' : ''} ${stone.group && answer === stone.group ? 'selected' : ''} ${stone.group && correctGroup === stone.group ? 'correct' : ''}`} style={{ left: left(stone.x), top: top(stone.y), width: `${92 / Math.max(crop.width, crop.height)}%` }} onClick={() => selectable && stone.group && onAnswer(stone.group)} disabled={!selectable} />;
     })}
-    {phase === 'answering' && groupStage?.candidates.map((candidate) => <button key={candidate.id} className={`group-target ${answer === candidate.id ? 'active' : ''}`} type="button" style={{ left: `${candidate.target.left}%`, top: `${candidate.target.top}%` }} onClick={() => onAnswer(candidate.id)} aria-label={`${candidate.marker} ${candidate.label}`}><span>{candidate.marker}</span></button>)}
+    {phase === 'answering' && stage.type === 'compare_groups' && stage.candidates.map((candidate) => {
+      const stones = position.stones.filter((stone) => stone.group === candidate.id);
+      const centerX = stones.reduce((sum, stone) => sum + stone.x, 0) / Math.max(1, stones.length);
+      const centerY = stones.reduce((sum, stone) => sum + stone.y, 0) / Math.max(1, stones.length);
+      return <button key={candidate.id} className={`group-target ${answer === candidate.id ? 'active' : ''}`} type="button" style={{ left: left(centerX), top: `calc(${top(centerY)} - 42px)` }} onClick={() => onAnswer(candidate.id)} aria-label={`${candidate.marker} ${candidate.label}`}><span>{candidate.marker}</span></button>;
+    })}
     {phase === 'answering' && moveStage?.candidates.filter((move) => visible(move.x, move.y)).map((move) => <button key={move.id} className={`move-target ${answer === move.id ? 'active' : ''}`} type="button" style={{ left: left(move.x), top: top(move.y) }} onClick={() => onAnswer(move.id)} aria-label={move.label}>{move.label}</button>)}
     {phase === 'feedback' && feedback?.boardNotes.map((note, i) => <span key={i} className="annotation" style={{ left: `${note.left}%`, top: `${note.top}%` }}>{note.label}</span>)}
   </div></div>;
@@ -53,6 +58,28 @@ function ChoiceStage({ stage, answer, onChange }: { stage: PublicStage; answer?:
     if (!multiple) { onChange(option.id); return; }
     onChange(selected.includes(option.id) ? selected.filter((id) => id !== option.id) : [...selected, option.id]);
   }}><span>{String.fromCharCode(65 + index)}</span><span className="choice-copy"><b>{option.label}</b>{option.detail && <small>{option.detail}</small>}</span><i aria-hidden="true">✓</i></button>)}</div>;
+}
+
+function answerText(stage: PublicStage, answer: AnswerValue | undefined) {
+  if (answer === undefined) return '未回答';
+  const choices = stage.type === 'compare_groups' || stage.type === 'select_group' || stage.type === 'choose_move'
+    ? stage.candidates : stage.options;
+  const ids = Array.isArray(answer) ? answer : [answer];
+  return ids.map((id) => choices.find((choice) => choice.id === id)?.label ?? id).join('、');
+}
+
+function feedbackMessage(stages: PublicStage[], feedback: AttemptFeedback) {
+  const judgment = stages.find((stage) => stage.type !== 'select_evidence');
+  const evidence = stages.find((stage) => stage.type === 'select_evidence');
+  if (!judgment || !evidence) return feedback.allCorrect
+    ? 'この問題の判断は正解です。'
+    : 'この問題の判断は不正解です。正解と考え方を確認しましょう。';
+  const judgmentCorrect = feedback.stageResults[judgment.id];
+  const evidenceCorrect = feedback.stageResults[evidence.id];
+  if (judgmentCorrect && evidenceCorrect) return '結論と、その根拠の両方が正解です。';
+  if (judgmentCorrect) return '結論は正解ですが、選んだ根拠が正解と一致していません。';
+  if (evidenceCorrect) return '根拠は捉えていますが、盤上の結論につながっていません。';
+  return '結論と根拠の両方を、判断手順に沿って見直しましょう。';
 }
 
 async function json<T>(response: Response): Promise<T> {
@@ -141,15 +168,16 @@ export default function TrainingApp() {
   const playerName = exercise.position.toPlay === 'black' ? '黒' : '白';
   const accuracy = report?.accuracy ?? 0;
   const promptLines = stage.prompt.split('\n');
+  const feedbackCorrectCount = feedback ? Object.values(feedback.stageResults).filter(Boolean).length : 0;
   return <main className="app-frame">
     <header className="topbar"><a className="brand" href="#top" aria-label="碁眼 ホーム"><span className="brand-mark" aria-hidden="true"><i /><i /></span><span>碁眼 <small>GO-GAN</small></span></a><div className="lesson-progress" aria-label={`診断の進捗 ${phase === 'report' ? exercises.length : questionIndex + 1}問目`}><span>判断トレーニング</span><div className="progress-track"><i style={{ width: phase === 'report' ? '100%' : `${(questionIndex + 1) / exercises.length * 100}%` }} /></div><strong>{phase === 'report' ? exercises.length : questionIndex + 1} <small>/ {exercises.length}</small></strong></div><span className="quiet-note">複数の判断形式で診断</span></header>
     {phase !== 'report' ? <section className="lesson" id="top">
       <div className="board-column"><div className="eyebrow"><span>判断軸 {String(questionIndex + 1).padStart(2, '0')}</span> {exercise.topic}</div><GoBoard exercise={exercise} stage={stage} answer={currentAnswer} feedback={feedback} phase={phase} onAnswer={updateAnswer} /><p className="board-caption"><b className="turn-stone" />あなたは{playerName}番です　{exercise.position.size}路盤・{STAGE_LABELS[stage.type]}</p></div>
       <aside className="question-card" aria-live="polite">
         {phase === 'answering' && <><p className="perspective-label"><i />YOU ARE {exercise.position.toPlay.toUpperCase()}</p><div className="stage-meta"><span>{STAGE_LABELS[stage.type]}</span><b>{stageIndex + 1} / {exercise.stages.length}</b></div><p className="question-number">QUESTION {String(questionIndex + 1).padStart(2, '0')}</p><h1>{promptLines.map((line, index) => <span key={`${line}-${index}`}>{line}{index < promptLines.length - 1 && <br />}</span>)}</h1><p className="lead">{stage.lead}</p><ChoiceStage stage={stage} answer={currentAnswer} onChange={updateAnswer} />{(stage.type === 'compare_groups' || stage.type === 'select_group') && <p className="tap-guide">盤上の候補をタップして選択</p>}{stage.type === 'choose_move' && <p className="tap-guide">盤上の着手候補をタップ</p>}{error && <p className="personal-note">{error}</p>}<div className="stage-actions">{stageIndex > 0 && <button className="back-link" type="button" onClick={() => setStageIndex((index) => index - 1)}>← 前の判断へ</button>}<button className="primary-button" type="button" disabled={!canContinue || busy} onClick={continueStage}>{busy ? '採点しています…' : stageIndex === exercise.stages.length - 1 ? '判断を確かめる' : '次の判断へ'}</button></div></>}
-        {phase === 'feedback' && feedback && <><p className="result-label">{feedback.allCorrect ? '一連の判断が一致しました' : 'ここが今回の発見です'}</p><h1>{feedback.conclusion}</h1><p className="principle">{feedback.principle}</p><div className="stage-result-list">{exercise.stages.map((item, index) => <div key={item.id} className={feedback.stageResults[item.id] ? 'correct' : 'miss'}><span>{feedback.stageResults[item.id] ? '✓' : '!'}</span><p><strong>{STAGE_LABELS[item.type]}</strong>{feedback.stageResults[item.id] ? '判断できました' : 'もう一度確認しましょう'}</p></div>)}</div><div className="explanation-steps">{feedback.explanations.map((item, index) => <div key={item.title} className={index === 2 ? 'muted' : ''}><span>{index + 1}</span><p><strong>{item.title}</strong>{item.body}</p></div>)}</div>{feedback.errorTag && <p className="personal-note">「{feedback.errorTag}」傾向の可能性を記録しました。</p>}<button className="primary-button" type="button" disabled={busy} onClick={advance}>{busy ? '集計しています…' : questionIndex === exercises.length - 1 ? '診断結果を見る' : '次の問題へ'}</button></>}
+        {phase === 'feedback' && feedback && <><p className={`result-label ${feedback.allCorrect ? '' : 'incorrect'}`}>{feedback.allCorrect ? '正解' : '不正解'}</p><h1>{feedback.allCorrect ? 'その判断で正解です。' : `${feedbackCorrectCount} / ${exercise.stages.length} の判断が正解でした。`}</h1><p className="principle feedback-summary">{feedbackMessage(exercise.stages, feedback)}</p><div className="stage-result-list">{exercise.stages.map((item) => <div key={item.id} className={feedback.stageResults[item.id] ? 'correct' : 'miss'}><span>{feedback.stageResults[item.id] ? '✓' : '×'}</span><p><strong>{STAGE_LABELS[item.type]}：{feedback.stageResults[item.id] ? '正解' : '不正解'}</strong><small>あなたの回答：{answerText(item, answers[item.id])}</small><small>正解：{answerText(item, feedback.correctAnswers[item.id])}</small></p></div>)}</div><div className="answer-conclusion"><span>この問題で伝えたいこと</span><h2>{feedback.conclusion}</h2><p>{feedback.principle}</p></div><div className="explanation-steps">{feedback.explanations.map((item, index) => <div key={item.title} className={index === 2 ? 'muted' : ''}><span>{index + 1}</span><p><strong>{item.title}</strong>{item.body}</p></div>)}</div>{feedback.errorTag && <p className="personal-note">今回の回答から「{feedback.errorTag}」傾向の可能性を記録しました。</p>}<button className="primary-button" type="button" disabled={busy} onClick={advance}>{busy ? '集計しています…' : questionIndex === exercises.length - 1 ? '診断結果を見る' : '次の問題へ'}</button></>}
       </aside>
-    </section> : <section className="report" id="top"><div className="report-intro"><p className="question-number">COACH REPORT</p><h1>答えだけでなく、<br />判断の過程を見ました。</h1><p>一団の発見、比較、根拠、優先順位を別々に記録した暫定診断です。</p></div><div className="score-card"><span>一連の判断の一致度</span><strong>{accuracy}<small>%</small></strong><div className="score-ring" style={{ '--score': `${accuracy * 3.6}deg` } as React.CSSProperties}><i /></div><p>{accuracy >= 80 ? '複数の判断形式でも基準が安定しています。' : '眼・逃げ道・優先順位の順に確認しましょう。'}</p></div><div className="report-grid"><article className="report-card strength"><span>現在の強み</span><h2>{(report?.groupAccuracy ?? 0) >= 67 ? '弱い石を発見する視点' : '盤面全体を見る直感'}</h2><p>操作形式が変わっても同じ判断基準を使えるかを見ています。</p></article><article className="report-card focus"><span>次に鍛える視点</span><h2>{report?.firstErrorTag ?? '優先順位の具体化'}</h2><p>認識から理由、方針へつなげる練習を続けます。</p></article><article className="report-card method"><span>あなたのものさし</span><ol><li>弱い一団を見つける</li><li>眼と逃げ道を確認</li><li>急場を大場より優先</li></ol></article></div><div className="report-actions"><button className="primary-button" type="button" disabled={busy} onClick={restart}>{busy ? '準備しています…' : 'もう一度診断する'}</button><p>回答履歴は匿名で保存されます。</p></div></section>}
+    </section> : <section className="report" id="top"><div className="report-intro"><p className="question-number">COACH REPORT</p><h1>正誤と考え方を、<br />分けて振り返ります。</h1><p>問題の正答率を示したうえで、一団の発見、根拠、優先順位のどこで迷ったかを整理します。</p></div><div className="score-card"><span>問題正答率</span><strong>{accuracy}<small>%</small></strong><div className="score-ring" style={{ '--score': `${accuracy * 3.6}deg` } as React.CSSProperties}><i /></div><p>{accuracy >= 80 ? '異なる問題形式でも正解できています。' : '正誤を確認し、次に判断手順を見直しましょう。'}</p></div><div className="report-grid"><article className="report-card strength"><span>現在の強み</span><h2>{(report?.groupAccuracy ?? 0) >= 67 ? '弱い石を発見する視点' : '盤面全体を見る直感'}</h2><p>正解した判断形式を、次の問題でも再現できるかを見ていきます。</p></article><article className="report-card focus"><span>次に鍛える視点</span><h2>{report?.firstErrorTag ?? '優先順位の具体化'}</h2><p>不正解だった段階を、眼・逃げ道・優先順位の順に確認します。</p></article><article className="report-card method"><span>あなたのものさし</span><ol><li>弱い一団を見つける</li><li>眼と逃げ道を確認</li><li>急場を大場より優先</li></ol></article></div><div className="report-actions"><button className="primary-button" type="button" disabled={busy} onClick={restart}>{busy ? '準備しています…' : 'もう一度診断する'}</button><p>回答履歴は匿名で保存されます。</p></div></section>}
     <footer className="lesson-footer"><span>判断の流れ</span><p>① 発見する　→　② 比較する　→　③ 根拠を確認　→　④ 方針を決める</p></footer>
   </main>;
 }
