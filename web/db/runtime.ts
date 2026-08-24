@@ -26,8 +26,10 @@ async function initialize() {
     db.prepare(`CREATE TABLE IF NOT EXISTS attempts (
       id TEXT PRIMARY KEY NOT NULL, session_id TEXT NOT NULL, run_id TEXT NOT NULL, exercise_id TEXT NOT NULL,
       exercise_version INTEGER NOT NULL, selected_group TEXT NOT NULL,
-      selected_reasons_json TEXT NOT NULL, group_correct INTEGER NOT NULL,
-      reasons_correct INTEGER NOT NULL, response_ms INTEGER NOT NULL, error_tag TEXT,
+      selected_reasons_json TEXT NOT NULL, answers_json TEXT DEFAULT '{}' NOT NULL,
+      stage_results_json TEXT DEFAULT '{}' NOT NULL, group_correct INTEGER NOT NULL,
+      reasons_correct INTEGER NOT NULL, all_correct INTEGER DEFAULT 0 NOT NULL,
+      response_ms INTEGER NOT NULL, error_tag TEXT,
       created_at TEXT NOT NULL,
       FOREIGN KEY (session_id) REFERENCES anonymous_sessions(id),
       FOREIGN KEY (run_id) REFERENCES training_runs(id),
@@ -41,6 +43,12 @@ async function initialize() {
       updated_at TEXT NOT NULL, PRIMARY KEY (session_id, tag),
       FOREIGN KEY (session_id) REFERENCES anonymous_sessions(id))`),
   ]);
+
+  const attemptColumns = (await db.prepare('PRAGMA table_info(attempts)').all<{ name: string }>()).results;
+  const columnNames = new Set(attemptColumns.map((column) => column.name));
+  if (!columnNames.has('answers_json')) await db.prepare("ALTER TABLE attempts ADD COLUMN answers_json TEXT DEFAULT '{}' NOT NULL").run();
+  if (!columnNames.has('stage_results_json')) await db.prepare("ALTER TABLE attempts ADD COLUMN stage_results_json TEXT DEFAULT '{}' NOT NULL").run();
+  if (!columnNames.has('all_correct')) await db.prepare('ALTER TABLE attempts ADD COLUMN all_correct INTEGER DEFAULT 0 NOT NULL').run();
 
   const now = new Date().toISOString();
   await db.batch(EXERCISE_CATALOG.map((exercise, ordinal) => db.prepare(`

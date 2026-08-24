@@ -1,11 +1,19 @@
-import type { ExerciseDefinition, ExerciseView, Stone } from './training';
+import { REASON_OPTIONS, type ExerciseDefinition, type ExerciseStage, type ExerciseView, type PlayerColor, type Stone } from './training';
+
+type LegacySeed = {
+  id: string; version: number; player: PlayerColor; topic: string; prompt: string; lead: string;
+  stones: Stone[]; groupLabels: Record<string, string>; targets: Record<string, { left: number; top: number }>;
+  correctGroup: string; correctReasons: string[]; conclusion: string; principle: string;
+  explanations: { title: string; body: string }[];
+  boardNotes: { label: string; left: number; top: number }[]; errorTag: string;
+};
 
 const corners: Stone[] = [
   { x: 3, y: 3, color: 'black' }, { x: 15, y: 3, color: 'white' },
   { x: 3, y: 15, color: 'white' }, { x: 15, y: 15, color: 'black' },
 ];
 
-export const EXERCISE_CATALOG: ExerciseDefinition[] = [
+const legacySeeds: LegacySeed[] = [
   {
     id: 'living-options', version: 1, player: 'black', topic: '石数と強さ',
     prompt: '黒のAとB、\nより弱いのはどちらですか？',
@@ -73,7 +81,7 @@ export const EXERCISE_CATALOG: ExerciseDefinition[] = [
   },
 ];
 
-for (const exercise of EXERCISE_CATALOG) {
+for (const exercise of legacySeeds) {
   const blackCount = exercise.stones.filter((stone) => stone.color === 'black').length;
   const whiteCount = exercise.stones.filter((stone) => stone.color === 'white').length;
   const occupied = new Set(exercise.stones.map((stone) => `${stone.x},${stone.y}`));
@@ -83,8 +91,63 @@ for (const exercise of EXERCISE_CATALOG) {
   }
 }
 
+function stagesFor(seed: LegacySeed, index: number): ExerciseStage[] {
+  const candidates = ['a', 'b'].map((id) => ({ id, label: seed.groupLabels[id], marker: id.toUpperCase(), target: seed.targets[id] }));
+  const evidence: ExerciseStage = {
+    id: 'evidence', type: 'select_evidence', prompt: 'そう判断した根拠は何ですか？',
+    lead: '当てはまるものをすべて選んでください。', options: REASON_OPTIONS,
+    minSelections: 1, correctAnswers: seed.correctReasons,
+  };
+
+  if (index === 0) return [
+    { id: 'comparison', type: 'compare_groups', prompt: seed.prompt, lead: seed.lead, candidates, correctAnswer: seed.correctGroup },
+    evidence,
+  ];
+  if (index === 1) return [
+    { id: 'weak-group', type: 'select_group', prompt: '今すぐ手を入れるべき黒石を盤上から選んでください。', lead: 'ラベルではなく、盤面全体を見て弱い一団を探します。', candidates, correctAnswer: seed.correctGroup },
+    evidence,
+  ];
+  return [
+    {
+      id: 'priority', type: 'urgent_or_large', prompt: '黒番はいま、急場と大場のどちらを優先すべきですか？',
+      lead: '弱い石を放置した結果まで想像してください。',
+      options: [
+        { id: 'urgent', label: '急場：左下の黒Bの処置', detail: '弱い一団への対応を先に考える' },
+        { id: 'large', label: '大場：空いている右辺へ先行', detail: '地になりそうな広い場所を取る' },
+      ],
+      correctAnswer: 'urgent',
+    },
+  ];
+}
+
+export const EXERCISE_CATALOG: ExerciseDefinition[] = legacySeeds.map((seed, index) => ({
+  id: seed.id,
+  version: 2,
+  topic: seed.topic,
+  position: { size: 19, toPlay: seed.player, stones: seed.stones, source: { kind: 'authored' } },
+  stages: stagesFor(seed, index),
+  diagnosticTags: [seed.errorTag],
+  feedback: {
+    conclusion: seed.conclusion,
+    principle: seed.principle,
+    explanations: seed.explanations,
+    boardNotes: seed.boardNotes,
+  },
+}));
+
 export function toExerciseView(exercise: ExerciseDefinition): ExerciseView {
-  const { correctGroup: _group, correctReasons: _reasons, conclusion: _conclusion, principle: _principle,
-    explanations: _explanations, boardNotes: _notes, errorTag: _error, ...view } = exercise;
-  return view;
+  return {
+    id: exercise.id,
+    version: exercise.version,
+    topic: exercise.topic,
+    position: exercise.position,
+    stages: exercise.stages.map((stage) => {
+      if (stage.type === 'select_evidence') {
+        const { correctAnswers: _answer, ...publicStage } = stage;
+        return publicStage;
+      }
+      const { correctAnswer: _answer, ...publicStage } = stage;
+      return publicStage;
+    }),
+  };
 }
