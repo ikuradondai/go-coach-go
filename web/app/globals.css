@@ -32,6 +32,8 @@ button { color: inherit; }
 .progress-track { height: 4px; border-radius: 9px; background: #dcded3; overflow: hidden; }
 .progress-track i { display: block; height: 100%; background: var(--moss); border-radius: inherit; }
 .quiet-note { justify-self: end; color: var(--muted); font-size: 11px; }
+.admin-link { text-decoration: none; font-weight: 700; }
+.admin-link:hover, .admin-link:focus-visible { color: var(--moss); }
 .lesson { width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: clamp(34px, 6vh, 64px) 0 42px; display: grid; grid-template-columns: minmax(480px, 650px) minmax(330px, 410px); justify-content: space-between; gap: clamp(46px, 7vw, 105px); align-items: center; }
 .board-column { min-width: 0; }
 .eyebrow { display: flex; gap: 12px; align-items: center; margin: 0 0 14px; color: var(--moss); font-size: 12px; font-weight: 700; letter-spacing: .12em; }

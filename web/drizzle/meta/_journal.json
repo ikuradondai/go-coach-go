@@ -15,6 +15,13 @@
       "when": 1787571362995,
       "tag": "0001_smiling_sauron",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787634043140,
+      "tag": "0002_elite_doctor_spectrum",
+      "breakpoints": true
     }
   ]
 }

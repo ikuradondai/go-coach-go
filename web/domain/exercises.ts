@@ -127,6 +127,12 @@ export const EXERCISE_CATALOG: ExerciseDefinition[] = legacySeeds.map((seed, ind
   position: { size: 19, toPlay: seed.player, stones: seed.stones, source: { kind: 'authored' } },
   stages: stagesFor(seed, index),
   diagnosticTags: [seed.errorTag],
+  contentProfile: {
+    difficulty: index === 0 ? '入門' : '基礎',
+    category: index === 2 ? '急場と大場' : '強弱',
+    learningObjective: index === 0 ? '石数ではなく生きる手段で強弱を比べる' : index === 1 ? '連結と安全を区別して弱い一団を発見する' : '弱石への対応を大場より優先する',
+    source: { kind: 'original', label: '碁眼オリジナル局面', rightsStatus: 'owned' },
+  },
   feedback: {
     conclusion: index === 0 ? seed.conclusion : seed.conclusion.replaceAll('黒B', seed.groupLabels.b).replace(/^Bの黒石/, seed.groupLabels.b),
     principle: seed.principle,

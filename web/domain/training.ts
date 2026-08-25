@@ -56,10 +56,16 @@ export type ExerciseDefinition = {
   position: BoardPosition;
   stages: ExerciseStage[];
   diagnosticTags: string[];
+  contentProfile: {
+    difficulty: '入門' | '基礎' | '応用';
+    category: '生死' | '強弱' | '急場と大場' | '構想' | '着手';
+    learningObjective: string;
+    source: { kind: 'original' | 'licensed_sgf' | 'user_sgf'; label: string; rightsStatus: 'owned' | 'cleared' | 'private_only' };
+  };
   feedback: ExerciseFeedback;
 };
 
-export type ExerciseView = Omit<ExerciseDefinition, 'stages' | 'feedback' | 'diagnosticTags'> & {
+export type ExerciseView = Omit<ExerciseDefinition, 'stages' | 'feedback' | 'diagnosticTags' | 'contentProfile'> & {
   stages: PublicStage[];
 };
 

@@ -53,3 +53,13 @@ export const skillEstimates = sqliteTable('skill_estimates', {
   sampleCount: integer('sample_count').notNull().default(0),
   updatedAt: text('updated_at').notNull(),
 }, (table) => [primaryKey({ columns: [table.sessionId, table.tag] })]);
+
+export const exerciseReviews = sqliteTable('exercise_reviews', {
+  exerciseId: text('exercise_id').notNull().references(() => exercises.id),
+  exerciseVersion: integer('exercise_version').notNull(),
+  status: text('status', { enum: ['unreviewed', 'in_review', 'approved', 'changes_requested'] }).notNull().default('unreviewed'),
+  checklistJson: text('checklist_json').notNull().default('{}'),
+  reviewerNote: text('reviewer_note').notNull().default(''),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+}, (table) => [primaryKey({ columns: [table.exerciseId, table.exerciseVersion] })]);

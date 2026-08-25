@@ -42,6 +42,12 @@ async function initialize() {
       beta REAL DEFAULT 1 NOT NULL, sample_count INTEGER DEFAULT 0 NOT NULL,
       updated_at TEXT NOT NULL, PRIMARY KEY (session_id, tag),
       FOREIGN KEY (session_id) REFERENCES anonymous_sessions(id))`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS exercise_reviews (
+      exercise_id TEXT NOT NULL, exercise_version INTEGER NOT NULL,
+      status TEXT DEFAULT 'unreviewed' NOT NULL, checklist_json TEXT DEFAULT '{}' NOT NULL,
+      reviewer_note TEXT DEFAULT '' NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+      PRIMARY KEY (exercise_id, exercise_version),
+      FOREIGN KEY (exercise_id) REFERENCES exercises(id))`),
   ]);
 
   const attemptColumns = (await db.prepare('PRAGMA table_info(attempts)').all<{ name: string }>()).results;
