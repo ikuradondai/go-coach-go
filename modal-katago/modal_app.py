@@ -71,6 +71,7 @@ class KataGoService:
             stderr=subprocess.PIPE,
             text=True,
             bufsize=1,
+            env={**os.environ, "APPIMAGE_EXTRACT_AND_RUN": "1"},
         )
         threading.Thread(target=self._forward_stderr, daemon=True).start()
         version = self._query({"id": "__startup__", "action": "query_version"})
