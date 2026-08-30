@@ -11,7 +11,7 @@ type AttemptBody = {
 };
 
 function allowedIds(stage: ExerciseStage) {
-  if (stage.type === 'choose_move' || stage.type === 'compare_groups' || stage.type === 'select_group') return new Set(stage.candidates.map((item) => item.id));
+  if (stage.type === 'choose_move' || stage.type === 'compare_groups' || stage.type === 'select_group' || stage.type === 'transfer_check') return new Set(stage.candidates.map((item) => item.id));
   return new Set(stage.options.map((item) => item.id));
 }
 
@@ -61,34 +61,37 @@ export async function POST(request: Request) {
   const stageResults = Object.fromEntries(exercise.stages.map((stage) => [stage.id, isCorrect(stage, body.answers![stage.id])]));
   const correctAnswers = Object.fromEntries(exercise.stages.map((stage) => [stage.id, expectedAnswer(stage)]));
   const allCorrect = Object.values(stageResults).every(Boolean);
+  const errorTags = exercise.stages.filter((stage) => !stageResults[stage.id]).map((stage) => stage.diagnosticTag);
   const groupStage = exercise.stages.find((stage) => stage.type === 'compare_groups' || stage.type === 'select_group');
   const evidenceStage = exercise.stages.find((stage) => stage.type === 'select_evidence');
   const selectedGroup = groupStage && typeof body.answers[groupStage.id] === 'string' ? body.answers[groupStage.id] as string : 'a';
   const selectedReasons = evidenceStage && Array.isArray(body.answers[evidenceStage.id]) ? body.answers[evidenceStage.id] as string[] : [];
   const groupCorrect = groupStage ? stageResults[groupStage.id] : allCorrect;
   const reasonsCorrect = evidenceStage ? stageResults[evidenceStage.id] : allCorrect;
-  const errorTag = allCorrect ? null : exercise.diagnosticTags[0] ?? '判断手順を再確認';
+  const errorTag = errorTags[0] ?? null;
   const now = new Date().toISOString();
   const responseMs = Math.max(0, Math.min(Math.round(body.responseMs ?? 0), 30 * 60 * 1000));
 
   const statements = [
     db.prepare(`INSERT INTO attempts
       (id, session_id, run_id, exercise_id, exercise_version, selected_group, selected_reasons_json,
-       answers_json, stage_results_json, group_correct, reasons_correct, all_correct, response_ms, error_tag, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+       answers_json, stage_results_json, group_correct, reasons_correct, all_correct, response_ms, error_tag, error_tags_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(crypto.randomUUID(), body.sessionId, body.runId, exercise.id, exercise.version, selectedGroup,
         JSON.stringify(selectedReasons), JSON.stringify(body.answers), JSON.stringify(stageResults),
-        groupCorrect ? 1 : 0, reasonsCorrect ? 1 : 0, allCorrect ? 1 : 0, responseMs, errorTag, now),
+        groupCorrect ? 1 : 0, reasonsCorrect ? 1 : 0, allCorrect ? 1 : 0, responseMs, errorTag, JSON.stringify(errorTags), now),
     db.prepare('UPDATE anonymous_sessions SET last_seen_at = ? WHERE id = ?').bind(now, body.sessionId),
   ];
 
-  for (const tag of exercise.diagnosticTags) {
+  for (const stage of exercise.stages) {
+    const tag = stage.diagnosticTag;
+    const correct = stageResults[stage.id];
     statements.push(db.prepare(`INSERT INTO skill_estimates
       (session_id, tag, alpha, beta, sample_count, updated_at) VALUES (?, ?, ?, ?, 1, ?)
       ON CONFLICT(session_id, tag) DO UPDATE SET
         alpha=alpha+excluded.alpha-1, beta=beta+excluded.beta-1,
         sample_count=sample_count+1, updated_at=excluded.updated_at`)
-      .bind(body.sessionId, tag, allCorrect ? 2 : 1, allCorrect ? 1 : 2, now));
+      .bind(body.sessionId, tag, correct ? 2 : 1, correct ? 1 : 2, now));
   }
   await db.batch(statements);
 

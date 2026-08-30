@@ -1,4 +1,4 @@
-import { EXERCISE_CATALOG } from '@/domain/exercises';
+import { CATALOG_VERSION, EXERCISE_CATALOG } from '@/domain/exercises';
 import type { ExerciseDefinition } from '@/domain/training';
 import { getDb } from './index';
 
@@ -21,7 +21,8 @@ async function initialize() {
       id TEXT PRIMARY KEY NOT NULL, created_at TEXT NOT NULL, last_seen_at TEXT NOT NULL)`),
     db.prepare(`CREATE TABLE IF NOT EXISTS training_runs (
       id TEXT PRIMARY KEY NOT NULL, session_id TEXT NOT NULL, started_at TEXT NOT NULL,
-      completed_at TEXT, FOREIGN KEY (session_id) REFERENCES anonymous_sessions(id))`),
+      completed_at TEXT, catalog_version TEXT DEFAULT 'legacy' NOT NULL,
+      FOREIGN KEY (session_id) REFERENCES anonymous_sessions(id))`),
     db.prepare('CREATE INDEX IF NOT EXISTS training_runs_session_started_idx ON training_runs (session_id, started_at)'),
     db.prepare(`CREATE TABLE IF NOT EXISTS attempts (
       id TEXT PRIMARY KEY NOT NULL, session_id TEXT NOT NULL, run_id TEXT NOT NULL, exercise_id TEXT NOT NULL,
@@ -29,7 +30,7 @@ async function initialize() {
       selected_reasons_json TEXT NOT NULL, answers_json TEXT DEFAULT '{}' NOT NULL,
       stage_results_json TEXT DEFAULT '{}' NOT NULL, group_correct INTEGER NOT NULL,
       reasons_correct INTEGER NOT NULL, all_correct INTEGER DEFAULT 0 NOT NULL,
-      response_ms INTEGER NOT NULL, error_tag TEXT,
+      response_ms INTEGER NOT NULL, error_tag TEXT, error_tags_json TEXT DEFAULT '[]' NOT NULL,
       created_at TEXT NOT NULL,
       FOREIGN KEY (session_id) REFERENCES anonymous_sessions(id),
       FOREIGN KEY (run_id) REFERENCES training_runs(id),
@@ -74,6 +75,12 @@ async function initialize() {
   if (!columnNames.has('answers_json')) await db.prepare("ALTER TABLE attempts ADD COLUMN answers_json TEXT DEFAULT '{}' NOT NULL").run();
   if (!columnNames.has('stage_results_json')) await db.prepare("ALTER TABLE attempts ADD COLUMN stage_results_json TEXT DEFAULT '{}' NOT NULL").run();
   if (!columnNames.has('all_correct')) await db.prepare('ALTER TABLE attempts ADD COLUMN all_correct INTEGER DEFAULT 0 NOT NULL').run();
+  if (!columnNames.has('error_tags_json')) await db.prepare("ALTER TABLE attempts ADD COLUMN error_tags_json TEXT DEFAULT '[]' NOT NULL").run();
+
+  const runColumns = (await db.prepare('PRAGMA table_info(training_runs)').all<{ name: string }>()).results;
+  if (!runColumns.some((column) => column.name === 'catalog_version')) {
+    await db.prepare("ALTER TABLE training_runs ADD COLUMN catalog_version TEXT DEFAULT 'legacy' NOT NULL").run();
+  }
 
   const analysisColumns = (await db.prepare('PRAGMA table_info(katago_analysis_jobs)').all<{ name: string }>()).results;
   const analysisColumnNames = new Set(analysisColumns.map((column) => column.name));
@@ -90,6 +97,8 @@ async function initialize() {
   `).bind(exercise.id, ordinal, exercise.version, JSON.stringify(exercise), now, now)));
   await db.prepare('PRAGMA optimize').run();
 }
+
+export { CATALOG_VERSION };
 
 export async function getExerciseDefinition(id: string): Promise<ExerciseDefinition | null> {
   await ensureDatabase();

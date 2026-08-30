@@ -21,6 +21,7 @@ export const trainingRuns = sqliteTable('training_runs', {
   sessionId: text('session_id').notNull().references(() => anonymousSessions.id),
   startedAt: text('started_at').notNull(),
   completedAt: text('completed_at'),
+  catalogVersion: text('catalog_version').notNull().default('legacy'),
 }, (table) => [index('training_runs_session_started_idx').on(table.sessionId, table.startedAt)]);
 
 export const attempts = sqliteTable('attempts', {
@@ -38,6 +39,7 @@ export const attempts = sqliteTable('attempts', {
   allCorrect: integer('all_correct', { mode: 'boolean' }).notNull().default(false),
   responseMs: integer('response_ms').notNull(),
   errorTag: text('error_tag'),
+  errorTagsJson: text('error_tags_json').notNull().default('[]'),
   createdAt: text('created_at').notNull(),
 }, (table) => [
   index('attempts_session_created_idx').on(table.sessionId, table.createdAt),

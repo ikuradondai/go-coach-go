@@ -17,7 +17,18 @@ export type ChoiceOption = { id: string; label: string; detail?: string };
 export type GroupCandidate = { id: string; label: string; marker: string; target: BoardPoint };
 export type MoveCandidate = Point & { id: string; label: string };
 
-type StageBase = { id: string; prompt: string; lead?: string };
+export type DiagnosticTag =
+  | 'weak_group_detection'
+  | 'own_group_overestimate'
+  | 'opponent_weakness_miss'
+  | 'stone_count_bias'
+  | 'connected_means_safe'
+  | 'eye_space_miss'
+  | 'escape_route_miss'
+  | 'local_context_bias'
+  | 'transfer_failure';
+
+type StageBase = { id: string; prompt: string; lead?: string; diagnosticTag: DiagnosticTag };
 export type CompareGroupsStage = StageBase & {
   type: 'compare_groups'; candidates: GroupCandidate[]; allowSame?: boolean; correctAnswer: string;
 };
@@ -33,14 +44,18 @@ export type SingleChoiceStage = StageBase & {
 export type ChooseMoveStage = StageBase & {
   type: 'choose_move'; candidates: MoveCandidate[]; correctAnswer: string;
 };
-export type ExerciseStage = CompareGroupsStage | SelectGroupStage | SelectEvidenceStage | SingleChoiceStage | ChooseMoveStage;
+export type TransferCheckStage = StageBase & {
+  type: 'transfer_check'; position: BoardPosition; candidates: GroupCandidate[]; correctAnswer: string;
+};
+export type ExerciseStage = CompareGroupsStage | SelectGroupStage | SelectEvidenceStage | SingleChoiceStage | ChooseMoveStage | TransferCheckStage;
 
 export type PublicStage =
   | Omit<CompareGroupsStage, 'correctAnswer'>
   | Omit<SelectGroupStage, 'correctAnswer'>
   | Omit<SelectEvidenceStage, 'correctAnswers'>
   | Omit<SingleChoiceStage, 'correctAnswer'>
-  | Omit<ChooseMoveStage, 'correctAnswer'>;
+  | Omit<ChooseMoveStage, 'correctAnswer'>
+  | Omit<TransferCheckStage, 'correctAnswer'>;
 
 export type ExerciseFeedback = {
   conclusion: string;
@@ -55,7 +70,7 @@ export type ExerciseDefinition = {
   topic: string;
   position: BoardPosition;
   stages: ExerciseStage[];
-  diagnosticTags: string[];
+  diagnosticTags: DiagnosticTag[];
   contentProfile: {
     difficulty: '入門' | '基礎' | '応用';
     category: '生死' | '強弱' | '急場と大場' | '構想' | '着手';
@@ -79,9 +94,9 @@ export type AttemptFeedback = ExerciseFeedback & {
 export type TrainingReport = {
   attemptCount: number;
   accuracy: number;
-  firstErrorTag: string | null;
-  groupAccuracy: number;
-  reasonAccuracy: number;
+  completed: boolean;
+  stageAccuracy: Record<'discover' | 'compare' | 'evidence' | 'transfer', number>;
+  tendencies: { tag: DiagnosticTag; label: string; misses: number; samples: number; status: 'possible' | 'observed' }[];
 };
 
 export const REASON_OPTIONS: ChoiceOption[] = [

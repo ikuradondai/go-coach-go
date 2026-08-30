@@ -1,5 +1,6 @@
 import { ensureDatabase } from '@/db/runtime';
 import { getDb } from '@/db';
+import { CATALOG_VERSION } from '@/domain/exercises';
 
 const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -17,14 +18,14 @@ export async function POST(request: Request) {
 
   const requestedRun = body.runId && SESSION_ID.test(body.runId) ? body.runId : null;
   const existingRun = requestedRun
-    ? await getDb().prepare('SELECT id FROM training_runs WHERE id = ? AND session_id = ?')
-        .bind(requestedRun, sessionId).first<{ id: string }>()
+    ? await getDb().prepare('SELECT id FROM training_runs WHERE id = ? AND session_id = ? AND catalog_version = ?')
+        .bind(requestedRun, sessionId, CATALOG_VERSION).first<{ id: string }>()
     : null;
   const runId = existingRun?.id ?? crypto.randomUUID();
   if (!existingRun) {
-    await getDb().prepare('INSERT INTO training_runs (id, session_id, started_at) VALUES (?, ?, ?)')
-      .bind(runId, sessionId, now).run();
+    await getDb().prepare('INSERT INTO training_runs (id, session_id, started_at, catalog_version) VALUES (?, ?, ?, ?)')
+      .bind(runId, sessionId, now, CATALOG_VERSION).run();
   }
 
-  return Response.json({ sessionId, runId }, { headers: { 'Cache-Control': 'no-store' } });
+  return Response.json({ sessionId, runId, catalogVersion: CATALOG_VERSION }, { headers: { 'Cache-Control': 'no-store' } });
 }

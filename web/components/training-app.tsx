@@ -3,26 +3,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AnswerValue, AttemptFeedback, ExerciseAnswers, ExerciseView, PublicStage, TrainingReport } from '@/domain/training';
 
-type Identity = { sessionId: string; runId: string };
+type Identity = { sessionId: string; runId: string; catalogVersion: string };
 type Phase = 'answering' | 'feedback' | 'report';
 
 const STAGE_LABELS: Record<PublicStage['type'], string> = {
   compare_groups: '一団を比較', select_group: '弱い石を発見', select_evidence: '根拠を確認',
-  urgent_or_large: '急場と大場', choose_plan: '方針を選択', choose_move: '着手を選択',
+  urgent_or_large: '急場と大場', choose_plan: '方針を選択', choose_move: '着手を選択', transfer_check: '別局面へ転用',
 };
 
 function GoBoard({ exercise, stage, answer, feedback, phase, onAnswer }: {
   exercise: ExerciseView; stage: PublicStage; answer?: AnswerValue; feedback: AttemptFeedback | null;
   phase: Phase; onAnswer: (answer: string) => void;
 }) {
-  const position = exercise.position;
+  const position = phase === 'answering' && stage.type === 'transfer_check' ? stage.position : exercise.position;
   const crop = position.crop ?? { x: 0, y: 0, width: position.size, height: position.size };
   const verticals = useMemo(() => Array.from({ length: crop.width }), [crop.width]);
   const horizontals = useMemo(() => Array.from({ length: crop.height }), [crop.height]);
   const left = (x: number) => `${(x - crop.x) / Math.max(1, crop.width - 1) * 100}%`;
   const top = (y: number) => `${(y - crop.y) / Math.max(1, crop.height - 1) * 100}%`;
   const visible = (x: number, y: number) => x >= crop.x && x < crop.x + crop.width && y >= crop.y && y < crop.y + crop.height;
-  const groupStage = stage.type === 'compare_groups' || stage.type === 'select_group' ? stage : null;
+  const groupStage = stage.type === 'compare_groups' || stage.type === 'select_group' || stage.type === 'transfer_check' ? stage : null;
   const moveStage = stage.type === 'choose_move' ? stage : null;
   const correctGroup = phase === 'feedback'
     ? Object.entries(feedback?.correctAnswers ?? {}).find(([id]) => exercise.stages.some((item) => item.id === id && (item.type === 'compare_groups' || item.type === 'select_group')))?.[1]
@@ -38,7 +38,7 @@ function GoBoard({ exercise, stage, answer, feedback, phase, onAnswer }: {
       const selectable = phase === 'answering' && Boolean(groupStage?.candidates.some((item) => item.id === stone.group));
       return <button key={`${stone.x}-${stone.y}-${i}`} type="button" aria-label={`${stone.color === 'black' ? '黒' : '白'}石${stone.group ? ` グループ${stone.group}` : ''}`} className={`stone ${stone.color} ${selectable ? 'selectable' : ''} ${stone.group && answer === stone.group ? 'selected' : ''} ${stone.group && correctGroup === stone.group ? 'correct' : ''}`} style={{ left: left(stone.x), top: top(stone.y), width: `${92 / Math.max(crop.width, crop.height)}%` }} onClick={() => selectable && stone.group && onAnswer(stone.group)} disabled={!selectable} />;
     })}
-    {phase === 'answering' && stage.type === 'compare_groups' && stage.candidates.map((candidate) => {
+    {phase === 'answering' && (stage.type === 'compare_groups' || stage.type === 'transfer_check') && stage.candidates.map((candidate) => {
       const stones = position.stones.filter((stone) => stone.group === candidate.id);
       const centerX = stones.reduce((sum, stone) => sum + stone.x, 0) / Math.max(1, stones.length);
       const centerY = stones.reduce((sum, stone) => sum + stone.y, 0) / Math.max(1, stones.length);
@@ -50,7 +50,7 @@ function GoBoard({ exercise, stage, answer, feedback, phase, onAnswer }: {
 }
 
 function ChoiceStage({ stage, answer, onChange }: { stage: PublicStage; answer?: AnswerValue; onChange: (answer: AnswerValue) => void }) {
-  if (stage.type === 'compare_groups' || stage.type === 'select_group' || stage.type === 'choose_move') return null;
+  if (stage.type === 'compare_groups' || stage.type === 'select_group' || stage.type === 'choose_move' || stage.type === 'transfer_check') return null;
   const options = stage.options;
   const multiple = stage.type === 'select_evidence';
   const selected = Array.isArray(answer) ? answer : answer ? [answer] : [];
@@ -62,7 +62,7 @@ function ChoiceStage({ stage, answer, onChange }: { stage: PublicStage; answer?:
 
 function answerText(stage: PublicStage, answer: AnswerValue | undefined) {
   if (answer === undefined) return '未回答';
-  const choices = stage.type === 'compare_groups' || stage.type === 'select_group' || stage.type === 'choose_move'
+  const choices = stage.type === 'compare_groups' || stage.type === 'select_group' || stage.type === 'choose_move' || stage.type === 'transfer_check'
     ? stage.candidates : stage.options;
   const ids = Array.isArray(answer) ? answer : [answer];
   return ids.map((id) => choices.find((choice) => choice.id === id)?.label ?? id).join('、');
@@ -165,19 +165,20 @@ export default function TrainingApp() {
   if (error && !exercise) return <main className="app-frame"><section className="report"><div className="report-intro"><p className="question-number">CONNECTION ERROR</p><h1>診断を開始できませんでした。</h1><p>{error}</p><button className="primary-button" type="button" onClick={() => window.location.reload()}>再読み込み</button></div></section></main>;
   if (!exercise || !stage || !identity) return <main className="app-frame"><section className="report"><div className="report-intro"><p className="question-number">PREPARING</p><h1>診断を準備しています。</h1><p>問題と学習履歴を読み込んでいます。</p></div></section></main>;
 
-  const playerName = exercise.position.toPlay === 'black' ? '黒' : '白';
+  const displayPosition = stage.type === 'transfer_check' ? stage.position : exercise.position;
+  const playerName = displayPosition.toPlay === 'black' ? '黒' : '白';
   const accuracy = report?.accuracy ?? 0;
   const promptLines = stage.prompt.split('\n');
   const feedbackCorrectCount = feedback ? Object.values(feedback.stageResults).filter(Boolean).length : 0;
   return <main className="app-frame">
     <header className="topbar"><a className="brand" href="#top" aria-label="碁眼 ホーム"><span className="brand-mark" aria-hidden="true"><i /><i /></span><span>碁眼 <small>GO-GAN</small></span></a><div className="lesson-progress" aria-label={`診断の進捗 ${phase === 'report' ? exercises.length : questionIndex + 1}問目`}><span>判断トレーニング</span><div className="progress-track"><i style={{ width: phase === 'report' ? '100%' : `${(questionIndex + 1) / exercises.length * 100}%` }} /></div><strong>{phase === 'report' ? exercises.length : questionIndex + 1} <small>/ {exercises.length}</small></strong></div><a className="quiet-note admin-link" href="/admin/exercises">教材管理 →</a></header>
     {phase !== 'report' ? <section className="lesson" id="top">
-      <div className="board-column"><div className="eyebrow"><span>判断軸 {String(questionIndex + 1).padStart(2, '0')}</span> {exercise.topic}</div><GoBoard exercise={exercise} stage={stage} answer={currentAnswer} feedback={feedback} phase={phase} onAnswer={updateAnswer} /><p className="board-caption"><b className="turn-stone" />あなたは{playerName}番です　{exercise.position.size}路盤・{STAGE_LABELS[stage.type]}</p></div>
+      <div className="board-column"><div className="eyebrow"><span>診断 {String(questionIndex + 1).padStart(2, '0')}</span> {exercise.topic}</div><GoBoard exercise={exercise} stage={stage} answer={currentAnswer} feedback={feedback} phase={phase} onAnswer={updateAnswer} /><p className="board-caption"><b className={`turn-stone ${displayPosition.toPlay}`} />あなたは{playerName}番です　{displayPosition.size}路盤・{STAGE_LABELS[stage.type]}</p></div>
       <aside className="question-card" aria-live="polite">
-        {phase === 'answering' && <><p className="perspective-label"><i />YOU ARE {exercise.position.toPlay.toUpperCase()}</p><div className="stage-meta"><span>{STAGE_LABELS[stage.type]}</span><b>{stageIndex + 1} / {exercise.stages.length}</b></div><p className="question-number">QUESTION {String(questionIndex + 1).padStart(2, '0')}</p><h1>{promptLines.map((line, index) => <span key={`${line}-${index}`}>{line}{index < promptLines.length - 1 && <br />}</span>)}</h1><p className="lead">{stage.lead}</p><ChoiceStage stage={stage} answer={currentAnswer} onChange={updateAnswer} />{(stage.type === 'compare_groups' || stage.type === 'select_group') && <p className="tap-guide">盤上の候補をタップして選択</p>}{stage.type === 'choose_move' && <p className="tap-guide">盤上の着手候補をタップ</p>}{error && <p className="personal-note">{error}</p>}<div className="stage-actions">{stageIndex > 0 && <button className="back-link" type="button" onClick={() => setStageIndex((index) => index - 1)}>← 前の判断へ</button>}<button className="primary-button" type="button" disabled={!canContinue || busy} onClick={continueStage}>{busy ? '採点しています…' : stageIndex === exercise.stages.length - 1 ? '判断を確かめる' : '次の判断へ'}</button></div></>}
+        {phase === 'answering' && <><p className="perspective-label"><i className={displayPosition.toPlay} />YOU ARE {displayPosition.toPlay.toUpperCase()}</p><div className="stage-meta"><span>{STAGE_LABELS[stage.type]}</span><b>{stageIndex + 1} / {exercise.stages.length}</b></div><p className="question-number">DIAGNOSTIC {String(questionIndex + 1).padStart(2, '0')}</p><h1>{promptLines.map((line, index) => <span key={`${line}-${index}`}>{line}{index < promptLines.length - 1 && <br />}</span>)}</h1><p className="lead">{stage.lead}</p><ChoiceStage stage={stage} answer={currentAnswer} onChange={updateAnswer} />{(stage.type === 'compare_groups' || stage.type === 'select_group' || stage.type === 'transfer_check') && <p className="tap-guide">盤上の一団をタップして選択</p>}{stage.type === 'choose_move' && <p className="tap-guide">盤上の着手候補をタップ</p>}{error && <p className="personal-note">{error}</p>}<div className="stage-actions">{stageIndex > 0 && <button className="back-link" type="button" onClick={() => setStageIndex((index) => index - 1)}>← 前の判断へ</button>}<button className="primary-button" type="button" disabled={!canContinue || busy} onClick={continueStage}>{busy ? '採点しています…' : stageIndex === exercise.stages.length - 1 ? '診断する' : '次の判断へ'}</button></div></>}
         {phase === 'feedback' && feedback && <><p className={`result-label ${feedback.allCorrect ? '' : 'incorrect'}`}>{feedback.allCorrect ? '正解' : '不正解'}</p><h1>{feedback.allCorrect ? 'その判断で正解です。' : `${feedbackCorrectCount} / ${exercise.stages.length} の判断が正解でした。`}</h1><p className="principle feedback-summary">{feedbackMessage(exercise.stages, feedback)}</p><div className="stage-result-list">{exercise.stages.map((item) => <div key={item.id} className={feedback.stageResults[item.id] ? 'correct' : 'miss'}><span>{feedback.stageResults[item.id] ? '✓' : '×'}</span><p><strong>{STAGE_LABELS[item.type]}：{feedback.stageResults[item.id] ? '正解' : '不正解'}</strong><small>あなたの回答：{answerText(item, answers[item.id])}</small><small>正解：{answerText(item, feedback.correctAnswers[item.id])}</small></p></div>)}</div><div className="answer-conclusion"><span>この問題で伝えたいこと</span><h2>{feedback.conclusion}</h2><p>{feedback.principle}</p></div><div className="explanation-steps">{feedback.explanations.map((item, index) => <div key={item.title} className={index === 2 ? 'muted' : ''}><span>{index + 1}</span><p><strong>{item.title}</strong>{item.body}</p></div>)}</div>{feedback.errorTag && <p className="personal-note">今回の回答から「{feedback.errorTag}」傾向の可能性を記録しました。</p>}<button className="primary-button" type="button" disabled={busy} onClick={advance}>{busy ? '集計しています…' : questionIndex === exercises.length - 1 ? '診断結果を見る' : '次の問題へ'}</button></>}
       </aside>
-    </section> : <section className="report" id="top"><div className="report-intro"><p className="question-number">COACH REPORT</p><h1>正誤と考え方を、<br />分けて振り返ります。</h1><p>問題の正答率を示したうえで、一団の発見、根拠、優先順位のどこで迷ったかを整理します。</p></div><div className="score-card"><span>問題正答率</span><strong>{accuracy}<small>%</small></strong><div className="score-ring" style={{ '--score': `${accuracy * 3.6}deg` } as React.CSSProperties}><i /></div><p>{accuracy >= 80 ? '異なる問題形式でも正解できています。' : '正誤を確認し、次に判断手順を見直しましょう。'}</p></div><div className="report-grid"><article className="report-card strength"><span>現在の強み</span><h2>{(report?.groupAccuracy ?? 0) >= 67 ? '弱い石を発見する視点' : '盤面全体を見る直感'}</h2><p>正解した判断形式を、次の問題でも再現できるかを見ていきます。</p></article><article className="report-card focus"><span>次に鍛える視点</span><h2>{report?.firstErrorTag ?? '優先順位の具体化'}</h2><p>不正解だった段階を、眼・逃げ道・優先順位の順に確認します。</p></article><article className="report-card method"><span>あなたのものさし</span><ol><li>弱い一団を見つける</li><li>眼と逃げ道を確認</li><li>急場を大場より優先</li></ol></article></div><div className="report-actions"><button className="primary-button" type="button" disabled={busy} onClick={restart}>{busy ? '準備しています…' : 'もう一度診断する'}</button><p>回答履歴は匿名で保存されます。</p></div></section>}
-    <footer className="lesson-footer"><span>判断の流れ</span><p>① 発見する　→　② 比較する　→　③ 根拠を確認　→　④ 方針を決める</p></footer>
+    </section> : <section className="report" id="top"><div className="report-intro"><p className="question-number">COACH REPORT</p><h1>あなたの答えではなく、<br />判断の癖を見ます。</h1><p>{report?.completed ? '12局面の回答から、判断手順のどこで迷いやすいかを整理しました。' : 'まだ断定はしません。回答が増えるほど、弱点の可能性を絞り込みます。'}</p></div><div className="score-card"><span>判断手順の再現率</span><strong>{accuracy}<small>%</small></strong><div className="score-ring" style={{ '--score': `${accuracy * 3.6}deg` } as React.CSSProperties}><i /></div><p>{report?.attemptCount ?? 0} / {exercises.length} 局面を診断済み</p></div><div className="report-grid diagnostic-grid">{(['discover', 'compare', 'evidence', 'transfer'] as const).map((id, index) => <article className="report-card" key={id}><span>STEP {index + 1}</span><h2>{['弱石の発見', '自分と相手の比較', '根拠の確認', '別局面への転用'][index]}</h2><strong className="stage-score">{report?.stageAccuracy[id] ?? 0}%</strong></article>)}</div><div className="tendency-panel"><span>現在見えている傾向</span>{report?.tendencies.length ? report.tendencies.map((item) => <div key={item.tag}><b>{item.status === 'observed' ? '傾向' : '可能性'}</b><p><strong>{item.label}</strong><small>{item.samples}回中{item.misses}回で迷いが見られました</small></p></div>) : <p>まだ目立った弱点は見つかっていません。</p>}</div><div className="report-actions"><button className="primary-button" type="button" disabled={busy} onClick={restart}>{busy ? '準備しています…' : '新しい診断を始める'}</button><p>3問程度では断定せず、複数局面で再現した傾向だけを表示します。</p></div></section>}
+    <footer className="lesson-footer"><span>判断の流れ</span><p>① 弱石を発見　→　② 自分と相手を比較　→　③ 根拠を確認　→　④ 別局面へ転用</p></footer>
   </main>;
 }
