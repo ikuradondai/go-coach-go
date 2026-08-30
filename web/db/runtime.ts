@@ -48,6 +48,24 @@ async function initialize() {
       reviewer_note TEXT DEFAULT '' NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
       PRIMARY KEY (exercise_id, exercise_version),
       FOREIGN KEY (exercise_id) REFERENCES exercises(id))`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS sgf_imports (
+      id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, object_key TEXT NOT NULL,
+      sha256 TEXT NOT NULL, board_size INTEGER NOT NULL, rules TEXT NOT NULL,
+      komi REAL NOT NULL, black_player TEXT DEFAULT '' NOT NULL, white_player TEXT DEFAULT '' NOT NULL,
+      move_count INTEGER NOT NULL, game_json TEXT NOT NULL, created_at TEXT NOT NULL)`),
+    db.prepare('CREATE INDEX IF NOT EXISTS sgf_imports_created_idx ON sgf_imports (created_at)'),
+    db.prepare(`CREATE TABLE IF NOT EXISTS position_candidates (
+      id TEXT PRIMARY KEY NOT NULL, import_id TEXT NOT NULL, move_number INTEGER NOT NULL,
+      to_play TEXT NOT NULL, position_json TEXT NOT NULL, status TEXT DEFAULT 'selected' NOT NULL,
+      created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+      FOREIGN KEY (import_id) REFERENCES sgf_imports(id))`),
+    db.prepare('CREATE INDEX IF NOT EXISTS position_candidates_import_move_idx ON position_candidates (import_id, move_number)'),
+    db.prepare(`CREATE TABLE IF NOT EXISTS katago_analysis_jobs (
+      id TEXT PRIMARY KEY NOT NULL, candidate_id TEXT NOT NULL, status TEXT DEFAULT 'pending' NOT NULL,
+      visits INTEGER NOT NULL, request_json TEXT NOT NULL, result_json TEXT, error_message TEXT,
+      created_at TEXT NOT NULL, started_at TEXT, completed_at TEXT,
+      FOREIGN KEY (candidate_id) REFERENCES position_candidates(id))`),
+    db.prepare('CREATE INDEX IF NOT EXISTS katago_jobs_candidate_created_idx ON katago_analysis_jobs (candidate_id, created_at)'),
   ]);
 
   const attemptColumns = (await db.prepare('PRAGMA table_info(attempts)').all<{ name: string }>()).results;

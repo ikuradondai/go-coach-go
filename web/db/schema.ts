@@ -63,3 +63,42 @@ export const exerciseReviews = sqliteTable('exercise_reviews', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 }, (table) => [primaryKey({ columns: [table.exerciseId, table.exerciseVersion] })]);
+
+export const sgfImports = sqliteTable('sgf_imports', {
+  id: text('id').primaryKey(),
+  fileName: text('file_name').notNull(),
+  objectKey: text('object_key').notNull(),
+  sha256: text('sha256').notNull(),
+  boardSize: integer('board_size').notNull(),
+  rules: text('rules').notNull(),
+  komi: real('komi').notNull(),
+  blackPlayer: text('black_player').notNull().default(''),
+  whitePlayer: text('white_player').notNull().default(''),
+  moveCount: integer('move_count').notNull(),
+  gameJson: text('game_json').notNull(),
+  createdAt: text('created_at').notNull(),
+}, (table) => [index('sgf_imports_created_idx').on(table.createdAt)]);
+
+export const positionCandidates = sqliteTable('position_candidates', {
+  id: text('id').primaryKey(),
+  importId: text('import_id').notNull().references(() => sgfImports.id),
+  moveNumber: integer('move_number').notNull(),
+  toPlay: text('to_play', { enum: ['black', 'white'] }).notNull(),
+  positionJson: text('position_json').notNull(),
+  status: text('status', { enum: ['selected', 'analysis_pending', 'analysis_complete', 'analysis_failed'] }).notNull().default('selected'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+}, (table) => [index('position_candidates_import_move_idx').on(table.importId, table.moveNumber)]);
+
+export const katagoAnalysisJobs = sqliteTable('katago_analysis_jobs', {
+  id: text('id').primaryKey(),
+  candidateId: text('candidate_id').notNull().references(() => positionCandidates.id),
+  status: text('status', { enum: ['pending', 'running', 'complete', 'failed'] }).notNull().default('pending'),
+  visits: integer('visits').notNull(),
+  requestJson: text('request_json').notNull(),
+  resultJson: text('result_json'),
+  errorMessage: text('error_message'),
+  createdAt: text('created_at').notNull(),
+  startedAt: text('started_at'),
+  completedAt: text('completed_at'),
+}, (table) => [index('katago_jobs_candidate_created_idx').on(table.candidateId, table.createdAt)]);

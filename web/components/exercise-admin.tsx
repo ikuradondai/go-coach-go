@@ -54,7 +54,7 @@ export default function ExerciseAdmin() {
   };
 
   return <main className="admin-page">
-    <header className="admin-header"><a className="admin-brand" href="/">碁眼 <small>GO-GAN</small></a><div><span>OWNER WORKSPACE</span><h1>教材品質管理</h1><p>問題を増やす前に、正解・解説・出典・実戦自然度を同じ基準で確認します。</p></div><a className="back-to-training" href="/">診断画面へ戻る</a></header>
+    <header className="admin-header"><a className="admin-brand" href="/">碁眼 <small>GO-GAN</small></a><div><span>OWNER WORKSPACE</span><h1>教材品質管理</h1><p>問題を増やす前に、正解・解説・出典・実戦自然度を同じ基準で確認します。</p></div><nav className="admin-nav"><a href="#sgf-workspace">SGFパイプライン</a><a href="/">診断画面へ戻る</a></nav></header>
     <section className="quality-summary" aria-label="教材品質の概要"><article><span>登録問題</span><strong>{summary.total}</strong><small>問</small></article><article><span>承認済み</span><strong>{summary.approved}</strong><small>問</small></article><article><span>要修正</span><strong>{summary.needsWork}</strong><small>問</small></article><article><span>統計判定可能</span><strong>{summary.enoughData}</strong><small>問</small></article></section>
     <div className="quality-policy"><strong>公開品質ゲート</strong><p>5項目をすべて確認した問題だけ承認できます。回答数8件未満では、正答率による品質判断を保留します。</p></div>
     {message && <p className="admin-toast success">{message}</p>}{error && <p className="admin-toast error">{error}</p>}
