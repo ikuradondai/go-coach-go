@@ -4,5 +4,6 @@ declare namespace Cloudflare {
     FILES: R2Bucket;
     KATAGO_API_URL?: string;
     KATAGO_API_TOKEN?: string;
+    KATAGO_MONTHLY_JOB_LIMIT?: string;
   }
 }

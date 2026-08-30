@@ -29,6 +29,13 @@
       "when": 1788066406912,
       "tag": "0003_parched_raza",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1788068552034,
+      "tag": "0004_burly_maelstrom",
+      "breakpoints": true
     }
   ]
 }

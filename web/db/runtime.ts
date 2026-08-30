@@ -62,7 +62,8 @@ async function initialize() {
     db.prepare('CREATE INDEX IF NOT EXISTS position_candidates_import_move_idx ON position_candidates (import_id, move_number)'),
     db.prepare(`CREATE TABLE IF NOT EXISTS katago_analysis_jobs (
       id TEXT PRIMARY KEY NOT NULL, candidate_id TEXT NOT NULL, status TEXT DEFAULT 'pending' NOT NULL,
-      visits INTEGER NOT NULL, request_json TEXT NOT NULL, result_json TEXT, error_message TEXT,
+      visits INTEGER NOT NULL, cache_key TEXT DEFAULT '' NOT NULL, cache_hit INTEGER DEFAULT 0 NOT NULL,
+      request_json TEXT NOT NULL, result_json TEXT, error_message TEXT,
       created_at TEXT NOT NULL, started_at TEXT, completed_at TEXT,
       FOREIGN KEY (candidate_id) REFERENCES position_candidates(id))`),
     db.prepare('CREATE INDEX IF NOT EXISTS katago_jobs_candidate_created_idx ON katago_analysis_jobs (candidate_id, created_at)'),
@@ -73,6 +74,12 @@ async function initialize() {
   if (!columnNames.has('answers_json')) await db.prepare("ALTER TABLE attempts ADD COLUMN answers_json TEXT DEFAULT '{}' NOT NULL").run();
   if (!columnNames.has('stage_results_json')) await db.prepare("ALTER TABLE attempts ADD COLUMN stage_results_json TEXT DEFAULT '{}' NOT NULL").run();
   if (!columnNames.has('all_correct')) await db.prepare('ALTER TABLE attempts ADD COLUMN all_correct INTEGER DEFAULT 0 NOT NULL').run();
+
+  const analysisColumns = (await db.prepare('PRAGMA table_info(katago_analysis_jobs)').all<{ name: string }>()).results;
+  const analysisColumnNames = new Set(analysisColumns.map((column) => column.name));
+  if (!analysisColumnNames.has('cache_key')) await db.prepare("ALTER TABLE katago_analysis_jobs ADD COLUMN cache_key TEXT DEFAULT '' NOT NULL").run();
+  if (!analysisColumnNames.has('cache_hit')) await db.prepare('ALTER TABLE katago_analysis_jobs ADD COLUMN cache_hit INTEGER DEFAULT 0 NOT NULL').run();
+  await db.prepare('CREATE INDEX IF NOT EXISTS katago_jobs_cache_status_idx ON katago_analysis_jobs (cache_key, status)').run();
 
   const now = new Date().toISOString();
   await db.batch(EXERCISE_CATALOG.map((exercise, ordinal) => db.prepare(`

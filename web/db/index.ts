@@ -11,8 +11,10 @@ export function getFiles(): R2Bucket {
 }
 
 export function getKataGoConfig() {
+  const configuredLimit = Number(env.KATAGO_MONTHLY_JOB_LIMIT ?? 500);
   return {
     url: env.KATAGO_API_URL?.replace(/\/$/, '') ?? '',
     token: env.KATAGO_API_TOKEN ?? '',
+    monthlyJobLimit: Number.isFinite(configuredLimit) ? Math.max(1, Math.floor(configuredLimit)) : 500,
   };
 }

@@ -95,10 +95,15 @@ export const katagoAnalysisJobs = sqliteTable('katago_analysis_jobs', {
   candidateId: text('candidate_id').notNull().references(() => positionCandidates.id),
   status: text('status', { enum: ['pending', 'running', 'complete', 'failed'] }).notNull().default('pending'),
   visits: integer('visits').notNull(),
+  cacheKey: text('cache_key').notNull().default(''),
+  cacheHit: integer('cache_hit', { mode: 'boolean' }).notNull().default(false),
   requestJson: text('request_json').notNull(),
   resultJson: text('result_json'),
   errorMessage: text('error_message'),
   createdAt: text('created_at').notNull(),
   startedAt: text('started_at'),
   completedAt: text('completed_at'),
-}, (table) => [index('katago_jobs_candidate_created_idx').on(table.candidateId, table.createdAt)]);
+}, (table) => [
+  index('katago_jobs_candidate_created_idx').on(table.candidateId, table.createdAt),
+  index('katago_jobs_cache_status_idx').on(table.cacheKey, table.status),
+]);
